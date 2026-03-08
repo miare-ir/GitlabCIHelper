@@ -2,6 +2,7 @@ package setup
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -41,11 +42,13 @@ func Run(out io.Writer, in io.Reader, cwd string) error {
 		return err
 	}
 
+	printPlannedChangeOverview(out, planned)
+
 	fmt.Fprintln(out, "")
-	fmt.Fprintln(out, "Preview:")
+	fmt.Fprintln(out, "Diff preview:")
 	printDiff(out, planned.RootPipeline.RelativePath, string(planned.RootPipeline.OriginalBody), string(planned.RootPipeline.UpdatedBody))
 	printDiff(out, planned.Config.RelativePath, string(planned.Config.OriginalBody), string(planned.Config.UpdatedBody))
-	fmt.Fprintf(out, "Assets to sync: %d files under %s\n", len(planned.Assets), helperDir)
+	fmt.Fprintf(out, "Asset files to sync: %d (under %s)\n", len(planned.Assets), helperDir)
 
 	apply, err := promptYesNo(reader, out, "Apply these changes", false)
 	if err != nil {
@@ -62,14 +65,40 @@ func Run(out io.Writer, in io.Reader, cwd string) error {
 
 	fmt.Fprintln(out, "")
 	fmt.Fprintln(out, "Applied changes.")
-	fmt.Fprintln(out, "Set these project CI/CD variables in GitLab (Settings > CI/CD > Variables):")
-	fmt.Fprintf(out, "- %s (masked, protected as needed)\n", EnvToken)
-	fmt.Fprintf(out, "- %s (file variable, required only if codex_review is enabled)\n", EnvCodexAuth)
-	fmt.Fprintf(out, "Commit %s to the repository so jobs and scripts are available in CI.\n", helperDir)
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, "Next steps:")
+	fmt.Fprintln(out, "1. Set these project CI/CD variables in GitLab (Settings > CI/CD > Variables):")
+	fmt.Fprintf(out, "   - %s (masked, protected as needed)\n", EnvToken)
+	fmt.Fprintf(out, "   - %s (file variable, required only if codex_review is enabled)\n", EnvCodexAuth)
+	fmt.Fprintf(out, "2. Commit %s so jobs and scripts are available in CI.\n", helperDir)
+	fmt.Fprintln(out, "3. Run a pipeline to validate the helper jobs in your project context.")
 	fmt.Fprintln(out, "")
 	fmt.Fprintln(out, "The wizard never stores secret values in repository files.")
 
 	return nil
+}
+
+func printPlannedChangeOverview(out io.Writer, planned PlannedSetupChange) {
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, "Execution plan:")
+	printPlannedFileStatus(out, planned.RootPipeline)
+	printPlannedFileStatus(out, planned.Config)
+	fmt.Fprintf(out, "  - sync %d asset files into %s\n", len(planned.Assets), helperDir)
+}
+
+func printPlannedFileStatus(out io.Writer, change PlannedFileChange) {
+	fmt.Fprintf(out, "  - %s %s\n", describeChange(change), change.RelativePath)
+}
+
+func describeChange(change PlannedFileChange) string {
+	switch {
+	case len(change.OriginalBody) == 0 && len(change.UpdatedBody) > 0:
+		return "create"
+	case bytes.Equal(change.OriginalBody, change.UpdatedBody):
+		return "keep  "
+	default:
+		return "update"
+	}
 }
 
 func loadSetupState(cwd string) (setupState, error) {

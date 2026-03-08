@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"bufio"
 	"bytes"
 	"os"
 	"path/filepath"
@@ -281,6 +282,55 @@ func TestPlanSetupChangeIsIdempotentAfterFirstApply(t *testing.T) {
 	}
 	if string(planned.Config.OriginalBody) != string(planned.Config.UpdatedBody) {
 		t.Fatalf("expected config plan to be idempotent")
+	}
+}
+
+func TestPromptOptionAcceptsValueKey(t *testing.T) {
+	t.Parallel()
+
+	reader := bufio.NewReader(strings.NewReader(TriggerManualNonDefault + "\n"))
+	var out bytes.Buffer
+	got, err := promptOption(reader, &out, "auto_open_mr trigger mode", TriggerAlwaysNonDefault, []option{
+		{Value: TriggerAlwaysNonDefault, Label: "Always"},
+		{Value: TriggerManualNonDefault, Label: "Manual"},
+	})
+	if err != nil {
+		t.Fatalf("promptOption: %v", err)
+	}
+	if got != TriggerManualNonDefault {
+		t.Fatalf("expected trigger mode %q, got %q", TriggerManualNonDefault, got)
+	}
+}
+
+func TestPromptStageNormalizesCaseToKnownStage(t *testing.T) {
+	t.Parallel()
+
+	stageOrder := []string{"Build", "Review"}
+	stageSet := map[string]struct{}{
+		"Build":  {},
+		"Review": {},
+	}
+	reader := bufio.NewReader(strings.NewReader("review\n"))
+	var out bytes.Buffer
+
+	stage, additions, err := promptStage(reader, &out, "codex_review", "Build", stageOrder, stageSet)
+	if err != nil {
+		t.Fatalf("promptStage: %v", err)
+	}
+	if stage != "Review" {
+		t.Fatalf("expected canonical stage %q, got %q", "Review", stage)
+	}
+	if len(additions) != 0 {
+		t.Fatalf("expected no stage additions, got %v", additions)
+	}
+}
+
+func TestPickRecommendedStagePrefersQualityStage(t *testing.T) {
+	t.Parallel()
+
+	got := pickRecommendedStage("Checks", []string{"build", "test", "deploy"}, "auto_open_mr")
+	if got != "test" {
+		t.Fatalf("expected recommended stage %q, got %q", "test", got)
 	}
 }
 

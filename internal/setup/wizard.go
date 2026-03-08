@@ -16,8 +16,10 @@ type option struct {
 
 func collectConfig(out io.Writer, reader *bufio.Reader, existing *Config, discovery DiscoveryResult) (Config, []string, error) {
 	cfg := defaultConfig()
+	hasExistingConfig := false
 	if existing != nil {
 		cfg = *existing
+		hasExistingConfig = true
 	}
 
 	stageOrder := append([]string{}, discovery.Stages...)
@@ -26,19 +28,17 @@ func collectConfig(out io.Writer, reader *bufio.Reader, existing *Config, discov
 		stageSet[stage] = struct{}{}
 	}
 
-	fmt.Fprintln(out, "GitLab CI Helper setup")
-	fmt.Fprintln(out, "")
+	printWizardIntro(out, hasExistingConfig, discovery)
 
-	fmt.Fprintln(out, "")
-	fmt.Fprintln(out, "Configure job: auto_open_mr")
-	fmt.Fprintln(out, "  Automatically creates a merge request for the current branch.")
+	printJobSection(out, 1, 2, "auto_open_mr", "Automatically creates a merge request for the current branch.")
 	autoEnabled, err := promptYesNo(reader, out, "Enable auto_open_mr", cfg.Jobs.AutoOpenMR.Enabled)
 	if err != nil {
 		return Config{}, nil, err
 	}
 	cfg.Jobs.AutoOpenMR.Enabled = autoEnabled
 
-	autoStage, additions, err := promptStage(reader, out, "auto_open_mr", cfg.Jobs.AutoOpenMR.Stage, stageOrder, stageSet)
+	autoStageDefault := pickRecommendedStage(cfg.Jobs.AutoOpenMR.Stage, stageOrder, "auto_open_mr")
+	autoStage, additions, err := promptStage(reader, out, "auto_open_mr", autoStageDefault, stageOrder, stageSet)
 	if err != nil {
 		return Config{}, nil, err
 	}
@@ -48,7 +48,7 @@ func collectConfig(out io.Writer, reader *bufio.Reader, existing *Config, discov
 		stageOrder = append(stageOrder, stage)
 	}
 
-	fmt.Fprintln(out, "  Controls when the auto_open_mr job is triggered.")
+	fmt.Fprintln(out, "Choose when auto_open_mr should run.")
 	autoModeOptions := []option{
 		{Value: TriggerAlwaysNonDefault, Label: "Always on non-default branches (current method)"},
 		{Value: TriggerManualNonDefault, Label: "Manual on non-default branches"},
@@ -60,7 +60,7 @@ func collectConfig(out io.Writer, reader *bufio.Reader, existing *Config, discov
 	}
 	cfg.Jobs.AutoOpenMR.TriggerMode = autoMode
 
-	fmt.Fprintln(out, "  Custom MR description template file path, relative to repo root. Leave blank for built-in.")
+	fmt.Fprintln(out, "Custom MR description template path (repo-relative). Leave blank for built-in template.")
 	mrDescriptionPathDefault := derefOrEmpty(cfg.Jobs.AutoOpenMR.MRDescriptionOverridePath)
 	mrDescriptionPath, err := promptString(reader, out, "MR description override path (optional)", mrDescriptionPathDefault, false)
 	if err != nil {
@@ -68,16 +68,15 @@ func collectConfig(out io.Writer, reader *bufio.Reader, existing *Config, discov
 	}
 	cfg.Jobs.AutoOpenMR.MRDescriptionOverridePath = nilIfEmpty(mrDescriptionPath)
 
-	fmt.Fprintln(out, "")
-	fmt.Fprintln(out, "Configure job: codex_review")
-	fmt.Fprintln(out, "  AI-powered code review using Codex (requires GITLAB_CI_HELPER_CODEX_AUTH variable).")
+	printJobSection(out, 2, 2, "codex_review", "AI-powered code review via Codex. Requires GITLAB_CI_HELPER_CODEX_AUTH.")
 	codexEnabled, err := promptYesNo(reader, out, "Enable codex_review", cfg.Jobs.CodexReview.Enabled)
 	if err != nil {
 		return Config{}, nil, err
 	}
 	cfg.Jobs.CodexReview.Enabled = codexEnabled
 
-	codexStage, codexAdditions, err := promptStage(reader, out, "codex_review", cfg.Jobs.CodexReview.Stage, stageOrder, stageSet)
+	codexStageDefault := pickRecommendedStage(cfg.Jobs.CodexReview.Stage, stageOrder, "codex_review")
+	codexStage, codexAdditions, err := promptStage(reader, out, "codex_review", codexStageDefault, stageOrder, stageSet)
 	if err != nil {
 		return Config{}, nil, err
 	}
@@ -90,7 +89,7 @@ func collectConfig(out io.Writer, reader *bufio.Reader, existing *Config, discov
 		stageOrder = append(stageOrder, stage)
 	}
 
-	fmt.Fprintln(out, "  Controls when the codex_review job is triggered.")
+	fmt.Fprintln(out, "Choose when codex_review should run.")
 	codexModeOptions := []option{
 		{Value: TriggerManualNonDefault, Label: "Manual on non-default branches"},
 		{Value: TriggerAlwaysNonDefault, Label: "Always on non-default branches"},
@@ -104,14 +103,14 @@ func collectConfig(out io.Writer, reader *bufio.Reader, existing *Config, discov
 	cfg.Jobs.CodexReview.TriggerMode = codexMode
 
 	cfg.Jobs.CodexReview.AllowFailure = true
-	fmt.Fprintln(out, "  AI model identifier passed to the review script (e.g. gpt-5.3-codex).")
+	fmt.Fprintln(out, "AI model identifier passed to the review script (for example: gpt-5.3-codex).")
 	model, err := promptString(reader, out, "Codex model", cfg.Jobs.CodexReview.Model, true)
 	if err != nil {
 		return Config{}, nil, err
 	}
 	cfg.Jobs.CodexReview.Model = model
 
-	fmt.Fprintln(out, "  Custom prompt template file path, relative to repo root. Leave blank for built-in.")
+	fmt.Fprintln(out, "Custom prompt template path (repo-relative). Leave blank for built-in template.")
 	promptPathDefault := derefOrEmpty(cfg.Jobs.CodexReview.PromptOverridePath)
 	promptPath, err := promptString(reader, out, "Prompt override path (optional)", promptPathDefault, false)
 	if err != nil {
@@ -119,7 +118,7 @@ func collectConfig(out io.Writer, reader *bufio.Reader, existing *Config, discov
 	}
 	cfg.Jobs.CodexReview.PromptOverridePath = nilIfEmpty(promptPath)
 
-	fmt.Fprintln(out, "  Custom JSON schema for review output, relative to repo root. Leave blank for built-in.")
+	fmt.Fprintln(out, "Custom JSON schema path (repo-relative). Leave blank for built-in schema.")
 	schemaPathDefault := derefOrEmpty(cfg.Jobs.CodexReview.SchemaOverridePath)
 	schemaPath, err := promptString(reader, out, "Schema override path (optional)", schemaPathDefault, false)
 	if err != nil {
@@ -137,7 +136,75 @@ func collectConfig(out io.Writer, reader *bufio.Reader, existing *Config, discov
 		}
 	}
 
+	printConfigSummary(out, cfg, stageAdditions)
+
 	return cfg, stageAdditions, nil
+}
+
+func printWizardIntro(out io.Writer, hasExistingConfig bool, discovery DiscoveryResult) {
+	fmt.Fprintln(out, "GitLab CI Helper Setup Wizard")
+	fmt.Fprintln(out, "=============================")
+	if hasExistingConfig {
+		fmt.Fprintln(out, "Detected existing config. Using it as baseline defaults.")
+	} else {
+		fmt.Fprintln(out, "No existing config detected. Starting from smart defaults.")
+	}
+	if len(discovery.Stages) == 0 {
+		fmt.Fprintln(out, "Stage discovery: no stages detected in include chain. You can still define new ones.")
+	} else {
+		fmt.Fprintf(out, "Stage discovery: %s\n", summarizeStages(discovery.Stages))
+	}
+	fmt.Fprintln(out, "Tip: press Enter to accept defaults shown in brackets.")
+}
+
+func printJobSection(out io.Writer, step int, total int, name string, description string) {
+	header := fmt.Sprintf("[%d/%d] Configure job: %s", step, total, name)
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, header)
+	fmt.Fprintln(out, strings.Repeat("-", len(header)))
+	fmt.Fprintln(out, description)
+}
+
+func printConfigSummary(out io.Writer, cfg Config, stageAdditions []string) {
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, "Configuration summary:")
+	fmt.Fprintf(out, "  auto_open_mr: enabled=%t, stage=%s, trigger=%s, mr_template=%s\n",
+		cfg.Jobs.AutoOpenMR.Enabled,
+		cfg.Jobs.AutoOpenMR.Stage,
+		cfg.Jobs.AutoOpenMR.TriggerMode,
+		formatOptionalPath(cfg.Jobs.AutoOpenMR.MRDescriptionOverridePath),
+	)
+	fmt.Fprintf(out, "  codex_review: enabled=%t, stage=%s, trigger=%s, model=%s, prompt=%s, schema=%s\n",
+		cfg.Jobs.CodexReview.Enabled,
+		cfg.Jobs.CodexReview.Stage,
+		cfg.Jobs.CodexReview.TriggerMode,
+		cfg.Jobs.CodexReview.Model,
+		formatOptionalPath(cfg.Jobs.CodexReview.PromptOverridePath),
+		formatOptionalPath(cfg.Jobs.CodexReview.SchemaOverridePath),
+	)
+	if len(stageAdditions) == 0 {
+		fmt.Fprintln(out, "  stages to append: none")
+		return
+	}
+	fmt.Fprintf(out, "  stages to append: %s\n", strings.Join(stageAdditions, ", "))
+}
+
+func summarizeStages(stages []string) string {
+	if len(stages) <= 6 {
+		return strings.Join(stages, ", ")
+	}
+	return fmt.Sprintf("%s, ... (%d total)", strings.Join(stages[:6], ", "), len(stages))
+}
+
+func formatOptionalPath(value *string) string {
+	if value == nil {
+		return "(built-in)"
+	}
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return "(built-in)"
+	}
+	return trimmed
 }
 
 func defaultConfig() Config {
@@ -161,13 +228,51 @@ func defaultConfig() Config {
 	}
 }
 
+func pickRecommendedStage(current string, stageOrder []string, jobName string) string {
+	trimmedCurrent := strings.TrimSpace(current)
+	if normalized, ok := normalizeStageName(trimmedCurrent, stageOrder); ok {
+		return normalized
+	}
+	if len(stageOrder) == 0 {
+		return trimmedCurrent
+	}
+	for _, keyword := range preferredStageKeywords(jobName) {
+		for _, stage := range stageOrder {
+			if strings.Contains(strings.ToLower(stage), keyword) {
+				return stage
+			}
+		}
+	}
+	return stageOrder[0]
+}
+
+func preferredStageKeywords(jobName string) []string {
+	switch jobName {
+	case "codex_review":
+		return []string{"review", "check", "test", "verify", "lint"}
+	default:
+		return []string{"check", "test", "verify", "lint"}
+	}
+}
+
 func promptStage(reader *bufio.Reader, out io.Writer, jobName string, current string, stageOrder []string, stageSet map[string]struct{}) (string, []string, error) {
+	current = strings.TrimSpace(current)
+	if current == "" && len(stageOrder) > 0 {
+		current = stageOrder[0]
+	}
 	for {
 		fmt.Fprintf(out, "Available stages for %s:\n", jobName)
-		for idx, stage := range stageOrder {
-			fmt.Fprintf(out, "  %d. %s\n", idx+1, stage)
+		if len(stageOrder) == 0 {
+			fmt.Fprintln(out, "  (none detected yet)")
 		}
-		fmt.Fprintf(out, "Choose stage number or enter custom stage")
+		for idx, stage := range stageOrder {
+			marker := " "
+			if stage == current {
+				marker = "*"
+			}
+			fmt.Fprintf(out, "  %d. [%s] %s\n", idx+1, marker, stage)
+		}
+		fmt.Fprintf(out, "Choose stage number or name")
 		if current != "" {
 			fmt.Fprintf(out, " [%s]", current)
 		}
@@ -196,11 +301,15 @@ func promptStage(reader *bufio.Reader, out io.Writer, jobName string, current st
 			return stageOrder[idx-1], nil, nil
 		}
 
+		if normalized, ok := normalizeStageName(line, stageOrder); ok {
+			return normalized, nil, nil
+		}
+
 		if _, ok := stageSet[line]; ok {
 			return line, nil, nil
 		}
 
-		add, err := promptYesNo(reader, out, fmt.Sprintf("Stage '%s' does not exist. Add it", line), true)
+		add, err := promptYesNo(reader, out, fmt.Sprintf("Stage %q does not exist. Add it to stages", line), true)
 		if err != nil {
 			return "", nil, err
 		}
@@ -226,9 +335,13 @@ func promptOption(reader *bufio.Reader, out io.Writer, label string, current str
 	for {
 		fmt.Fprintf(out, "%s:\n", label)
 		for idx, opt := range options {
-			fmt.Fprintf(out, "  %d. %s\n", idx+1, opt.Label)
+			marker := " "
+			if idx == currentIdx {
+				marker = "*"
+			}
+			fmt.Fprintf(out, "  %d. [%s] %s (%s)\n", idx+1, marker, opt.Label, opt.Value)
 		}
-		fmt.Fprintf(out, "Select option [%d]: ", currentIdx+1)
+		fmt.Fprintf(out, "Select option (number or key) [%d]: ", currentIdx+1)
 
 		line, err := reader.ReadString('\n')
 		if err != nil && !errors.Is(err, io.EOF) {
@@ -240,11 +353,17 @@ func promptOption(reader *bufio.Reader, out io.Writer, label string, current str
 		}
 
 		idx, convErr := strconv.Atoi(line)
-		if convErr != nil || idx < 1 || idx > len(options) {
-			fmt.Fprintln(out, "Invalid option.")
-			continue
+		if convErr == nil {
+			if idx < 1 || idx > len(options) {
+				fmt.Fprintln(out, "Invalid option number.")
+				continue
+			}
+			return options[idx-1].Value, nil
 		}
-		return options[idx-1].Value, nil
+		if value, ok := resolveOptionValue(line, options); ok {
+			return value, nil
+		}
+		fmt.Fprintln(out, "Invalid option. Use the number or key shown in parentheses.")
 	}
 }
 
@@ -288,12 +407,30 @@ func promptYesNo(reader *bufio.Reader, out io.Writer, label string, defaultYes b
 			return defaultYes, nil
 		}
 		switch line {
-		case "y", "yes":
+		case "y", "yes", "1", "true":
 			return true, nil
-		case "n", "no":
+		case "n", "no", "0", "false":
 			return false, nil
 		default:
 			fmt.Fprintln(out, "Please answer yes or no.")
 		}
 	}
+}
+
+func normalizeStageName(value string, stageOrder []string) (string, bool) {
+	for _, stage := range stageOrder {
+		if strings.EqualFold(stage, value) {
+			return stage, true
+		}
+	}
+	return "", false
+}
+
+func resolveOptionValue(value string, options []option) (string, bool) {
+	for _, opt := range options {
+		if strings.EqualFold(value, opt.Value) {
+			return opt.Value, true
+		}
+	}
+	return "", false
 }
