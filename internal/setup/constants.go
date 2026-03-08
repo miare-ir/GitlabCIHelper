@@ -1,0 +1,38 @@
+package setup
+
+const (
+	rootPipelineFile     = ".gitlab-ci.yml"
+	helperDir            = ".gitlab-ci-helper"
+	ConfigPath           = helperDir + "/config.yml"
+	LocalTemplatePath    = helperDir + "/gitlab-ci-helper.yml"
+	LocalMRTemplatePath  = helperDir + "/mr_description.md"
+	LocalTemplatesSubdir = helperDir + "/templates"
+)
+
+const (
+	EnvConfigPath              = "GITLAB_CI_HELPER_CONFIG_PATH"
+	EnvMRTemplatePath          = "GITLAB_CI_HELPER_MR_TEMPLATE_PATH"
+	EnvAutoOpenMREnabled       = "GITLAB_CI_HELPER_AUTO_OPEN_MR_ENABLED"
+	EnvAutoOpenMRStage         = "GITLAB_CI_HELPER_AUTO_OPEN_MR_STAGE"
+	EnvAutoOpenMRTriggerMode   = "GITLAB_CI_HELPER_AUTO_OPEN_MR_TRIGGER_MODE"
+	EnvCodexReviewEnabled      = "GITLAB_CI_HELPER_CODEX_REVIEW_ENABLED"
+	EnvCodexReviewStage        = "GITLAB_CI_HELPER_CODEX_REVIEW_STAGE"
+	EnvCodexReviewTriggerMode  = "GITLAB_CI_HELPER_CODEX_REVIEW_TRIGGER_MODE"
+	EnvCodexReviewAllowFailure = "GITLAB_CI_HELPER_CODEX_REVIEW_ALLOW_FAILURE"
+	EnvCodexReviewModel        = "GITLAB_CI_HELPER_CODEX_REVIEW_MODEL"
+	EnvCodexImage              = "GITLAB_CI_HELPER_CODEX_IMAGE"
+	EnvCodexPromptPath         = "GITLAB_CI_HELPER_CODEX_PROMPT_PATH"
+	EnvCodexSchemaPath         = "GITLAB_CI_HELPER_CODEX_SCHEMA_PATH"
+	EnvToken                   = "GITLAB_CI_HELPER_TOKEN"
+	EnvCodexAuth               = "GITLAB_CI_HELPER_CODEX_AUTH"
+	LegacyEnvTemplateProject   = "GITLAB_CI_HELPER_TEMPLATE_PROJECT"
+	LegacyEnvTemplateRef       = "GITLAB_CI_HELPER_TEMPLATE_REF"
+)
+
+const (
+	TriggerAlwaysNonDefault = "always_non_default"
+	TriggerManualNonDefault = "manual_non_default"
+	TriggerManualAnyBranch  = "manual_any_branch"
+	TriggerManualMREvent    = "manual_mr_event"
+	TriggerAlwaysMREvent    = "always_mr_event"
+)

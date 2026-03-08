@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "overall_comment": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "discussions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "info",
+                  "nit",
+                  "warn",
+                  "blocker"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "line": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1
+                  },
+                  "line_type": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "new",
+                          "old"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "path",
+                  "line",
+                  "line_type"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "resolution_suggestion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "body",
+          "severity",
+          "position",
+          "resolution_suggestion"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "overall_comment",
+    "discussions"
+  ],
+  "additionalProperties": false
+}

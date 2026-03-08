@@ -1,0 +1,67 @@
+gitlab_ci_helper_auto_open_mr:
+  before_script: []
+  stage: __GITLAB_CI_HELPER_AUTO_OPEN_MR_STAGE__
+  image: $GITLAB_CI_HELPER_CODEX_IMAGE
+  rules:
+    - if: '$GITLAB_CI_HELPER_AUTO_OPEN_MR_ENABLED != "true"'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$GITLAB_CI_HELPER_AUTO_OPEN_MR_TRIGGER_MODE == "manual_any_branch"'
+      when: manual
+    - if: '$GITLAB_CI_HELPER_AUTO_OPEN_MR_TRIGGER_MODE == "manual_non_default" && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+      when: manual
+    - if: '$GITLAB_CI_HELPER_AUTO_OPEN_MR_TRIGGER_MODE == "always_non_default" && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+      when: on_success
+    - when: never
+  script:
+    - |
+      set -euo pipefail
+      SCRIPT_PATH=".gitlab-ci-helper/templates/scripts/auto_open_mr.sh"
+      if [ ! -f "${SCRIPT_PATH}" ]; then
+        echo "Required helper script is missing: ${SCRIPT_PATH}" >&2
+        exit 1
+      fi
+
+      chmod +x "${SCRIPT_PATH}"
+      "${SCRIPT_PATH}"
+
+gitlab_ci_helper_codex_review:
+  before_script: []
+  stage: __GITLAB_CI_HELPER_CODEX_REVIEW_STAGE__
+  image: $GITLAB_CI_HELPER_CODEX_IMAGE
+  rules:
+    - if: '$GITLAB_CI_HELPER_CODEX_REVIEW_ENABLED != "true"'
+      when: never
+    - if: '$GITLAB_CI_HELPER_CODEX_REVIEW_TRIGGER_MODE == "manual_mr_event" && $CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: manual
+    - if: '$GITLAB_CI_HELPER_CODEX_REVIEW_TRIGGER_MODE == "always_mr_event" && $CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: on_success
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$GITLAB_CI_HELPER_CODEX_REVIEW_TRIGGER_MODE == "manual_non_default" && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+      when: manual
+    - if: '$GITLAB_CI_HELPER_CODEX_REVIEW_TRIGGER_MODE == "always_non_default" && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+      when: on_success
+    - when: never
+  script:
+    - |
+      set -euo pipefail
+      SCRIPT_PATH=".gitlab-ci-helper/templates/scripts/run_codex_review.sh"
+      if [ ! -f "${SCRIPT_PATH}" ]; then
+        echo "Required helper script is missing: ${SCRIPT_PATH}" >&2
+        exit 1
+      fi
+
+      chmod +x "${SCRIPT_PATH}"
+
+      set +e
+      "${SCRIPT_PATH}"
+      STATUS=$?
+      set -e
+
+      if [ "$STATUS" -ne 0 ] && [ "${GITLAB_CI_HELPER_CODEX_REVIEW_ALLOW_FAILURE:-true}" = "true" ]; then
+        echo "Codex review failed but GITLAB_CI_HELPER_CODEX_REVIEW_ALLOW_FAILURE=true; continuing."
+        exit 0
+      fi
+      exit "$STATUS"

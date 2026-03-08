@@ -1,0 +1,30 @@
+# Binary output
+gitlab-ci-helper
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of `go tool cover`
+*.out
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Dependency vendor directory
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
