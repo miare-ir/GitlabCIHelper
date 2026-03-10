@@ -48,7 +48,7 @@ jobs:
 
       - name: Build binary
         run: |
-          CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" \
+          CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X gitlab_ci_helper/internal/setup.BuildVersion=${GITHUB_REF_NAME}" \
             -o dist/gitlab-ci-helper ./cmd/gitlab-ci-helper
           cp scripts/release-install-setup.sh dist/gitlab-ci-helper-setup.sh
 

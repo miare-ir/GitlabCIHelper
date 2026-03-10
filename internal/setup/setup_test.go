@@ -100,7 +100,7 @@ variables:
 
 			variables := parsed["variables"].(map[string]any)
 			Expect(variables["GITLAB_CI_HELPER_MR_TEMPLATE_PATH"]).To(Equal(LocalMRTemplatePath))
-			Expect(variables[EnvCodexImage]).To(Equal(DefaultCodexImage))
+			Expect(variables[EnvCodexImage]).To(Equal(defaultCodexImage()))
 			Expect(variables["GITLAB_CI_HELPER_CODEX_REVIEW_MODEL"]).To(Equal("gpt-5.3-codex"))
 			Expect(variables).NotTo(HaveKey("GITLAB_CI_HELPER_TEMPLATE_PROJECT"))
 			Expect(variables).NotTo(HaveKey("GITLAB_CI_HELPER_TEMPLATE_REF"))
