@@ -21,5 +21,10 @@ Scope: files in `templates/` and subdirectories.
 
 ## Validation
 
-- Run `go test ./...` from repo root.
-- If template behavior changed, sanity-check setup flow still syncs/copys expected files.
+- Run `ginkgo -r ./...` (or `go test ./...`) from repo root.
+- If template behavior changed, sanity-check setup flow still syncs/copies expected files.
+
+## Known pitfalls
+
+- **Auto-generated headers belong directly in template source files**, not injected at runtime in Go code. Each template file should have the appropriate comment header (`#` for YAML/shell, `<!-- -->` for markdown). JSON files cannot have comments, so `review_output_schema.json` is excluded.
+- **Shell script headers go after the shebang line**, not before it. The shebang (`#!/usr/bin/env bash`) must remain the first line for the script to be executable.
