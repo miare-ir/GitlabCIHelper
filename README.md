@@ -1,57 +1,59 @@
 # gitlab-ci-helper
 
-Reusable GitLab CI package for cross-project automation.
+Open-source GitLab CI helper that adds automation jobs to your project through an interactive setup wizard.
 
-## Included jobs
+`gitlab-ci-helper` is designed for teams that want reusable CI automation without manually editing complex pipeline YAML. It configures your repository once, then keeps the setup stable and repeatable.
 
-- `gitlab_ci_helper_auto_open_mr` — automatically opens merge requests.
-- `gitlab_ci_helper_codex_review` — AI-powered MR review integrated with GitLab Discussions API.
+## What it does
 
-## Installation
+- Adds reusable helper jobs to your GitLab pipeline.
+- Configures everything through an interactive `setup` wizard.
+- Updates `.gitlab-ci.yml` idempotently (safe to run setup multiple times).
+- Syncs required helper templates and scripts into `.gitlab-ci-helper/`.
+- Supports:
+  - Automatic merge request opening (`gitlab_ci_helper_auto_open_mr`)
+  - AI-powered merge request review (`gitlab_ci_helper_codex_review`)
 
-Download the latest binary from [Releases](https://github.com/miare-ir/GitlabCIHelper/releases):
+## Install + quick start
 
-```bash
-curl -fsSL https://github.com/miare-ir/GitlabCIHelper/releases/latest/download/gitlab-ci-helper -o gitlab-ci-helper
-chmod +x gitlab-ci-helper
-```
-
-## Setup
-
-Run the interactive wizard from the root of your GitLab project (where `.gitlab-ci.yml` exists):
+Run this from the root of your GitLab repository (where `.gitlab-ci.yml` exists):
 
 ```bash
-./gitlab-ci-helper setup
+bash <(curl -fsSL https://github.com/miare-ir/GitlabCIHelper/releases/latest/download/gitlab-ci-helper-setup.sh)
 ```
 
 The wizard will:
 
-- inspect `.gitlab-ci.yml` and local include chains,
-- prompt for per-job trigger/stage and optional override paths,
-- preview diffs before writing,
+- inspect your local `.gitlab-ci.yml` include chain,
+- ask for trigger/stage behavior per job,
+- show a diff preview before applying,
 - update `.gitlab-ci.yml` and `.gitlab-ci-helper/config.yml`,
-- sync helper assets into `.gitlab-ci-helper/`.
+- sync helper assets under `.gitlab-ci-helper/templates/`.
 
-Commit the `.gitlab-ci-helper/` directory to your repository so the included jobs and scripts are available in CI.
+Commit `.gitlab-ci-helper/` to your repository so CI has access to the synced scripts/templates.
 
-## Required GitLab CI variables
+## Required CI/CD variables
 
-Set these in the target project's **Settings > CI/CD > Variables**:
+Set these in GitLab: `Settings > CI/CD > Variables`.
 
 | Variable | Description |
 |---|---|
-| `GITLAB_CI_HELPER_TOKEN` | GitLab API token with access to the project |
-| `GITLAB_CI_HELPER_CODEX_AUTH` | File variable; required when `codex_review` is enabled |
-| `GITLAB_CI_HELPER_CODEX_IMAGE` | Optional override for the runner image (default: `ghcr.io/miare-ir/gitlab-ci-helper-runner:v0`) |
+| `GITLAB_CI_HELPER_TOKEN` | GitLab API token with project access |
+| `GITLAB_CI_HELPER_CODEX_AUTH` | File variable used by the Codex review job |
+| `GITLAB_CI_HELPER_CODEX_IMAGE` | Optional runner image override (default: `ghcr.io/miare-ir/gitlab-ci-helper-runner:v0`) |
 
-Pin `GITLAB_CI_HELPER_CODEX_IMAGE` to a concrete release tag (e.g. `ghcr.io/miare-ir/gitlab-ci-helper-runner:v0.1.0`) for reproducible pipelines.
+For reproducible pipelines, pin image tags to concrete versions (for example `ghcr.io/miare-ir/gitlab-ci-helper-runner:v0.1.0`).
 
-## Runner image
+## Screenshots
 
-The `codex_review` job runs inside a container image published to GitHub Container Registry:
+Add your screenshots under `docs/screenshots/` using the names below (or update the paths).
 
-```
-docker pull ghcr.io/miare-ir/gitlab-ci-helper-runner:v0
-```
+![Setup Wizard](docs/screenshots/setup-wizard.png)
+![Diff Preview](docs/screenshots/diff-preview.png)
+![Generated Config](docs/screenshots/generated-config.png)
+![Pipeline Jobs](docs/screenshots/pipeline-jobs.png)
 
-Each release publishes tags `vX.Y.Z`, `vX.Y`, `vX`, and `latest`.
+## Project links
+
+- Releases: https://github.com/miare-ir/GitlabCIHelper/releases
+- Contribution guide: `CONTRIBUTING.md`

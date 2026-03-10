@@ -50,11 +50,12 @@ jobs:
         run: |
           CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" \
             -o dist/gitlab-ci-helper ./cmd/gitlab-ci-helper
+          cp scripts/release-install-setup.sh dist/gitlab-ci-helper-setup.sh
 
       - name: Generate checksum
         run: |
           cd dist
-          sha256sum gitlab-ci-helper > checksums.txt
+          sha256sum gitlab-ci-helper gitlab-ci-helper-setup.sh > checksums.txt
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
