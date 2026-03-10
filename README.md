@@ -4,60 +4,54 @@ Reusable GitLab CI package for cross-project automation.
 
 ## Included jobs
 
-- `gitlab_ci_helper_auto_open_mr`
-- `gitlab_ci_helper_codex_review`
+- `gitlab_ci_helper_auto_open_mr` — automatically opens merge requests.
+- `gitlab_ci_helper_codex_review` — AI-powered MR review integrated with GitLab Discussions API.
 
-`re_open_release_mr` is intentionally out of v1 and reserved in config as a disabled placeholder.
+## Installation
 
-## Wizard
-
-Build and run:
+Download the latest binary from [Releases](https://github.com/miare-ir/GitlabCIHelper/releases):
 
 ```bash
-go build -o gitlab-ci-helper ./cmd/gitlab-ci-helper
-gitlab-ci-helper setup
+curl -fsSL https://github.com/miare-ir/GitlabCIHelper/releases/latest/download/gitlab-ci-helper -o gitlab-ci-helper
+chmod +x gitlab-ci-helper
 ```
 
-The wizard:
+## Setup
 
-- inspects `.gitlab-ci.yml` and local include chains,
-- prompts for per-job trigger/stage and optional override paths,
-- previews diffs before writing,
-- updates `.gitlab-ci.yml` and `.gitlab-ci-helper/config.yml`,
-- syncs standalone helper assets into `.gitlab-ci-helper/`,
-- never stores secret values in repository files.
+Run the interactive wizard from the root of your GitLab project (where `.gitlab-ci.yml` exists):
 
-Commit `.gitlab-ci-helper/` to the target repository so included jobs/scripts are available in CI.
+```bash
+./gitlab-ci-helper setup
+```
+
+The wizard will:
+
+- inspect `.gitlab-ci.yml` and local include chains,
+- prompt for per-job trigger/stage and optional override paths,
+- preview diffs before writing,
+- update `.gitlab-ci.yml` and `.gitlab-ci-helper/config.yml`,
+- sync helper assets into `.gitlab-ci-helper/`.
+
+Commit the `.gitlab-ci-helper/` directory to your repository so the included jobs and scripts are available in CI.
 
 ## Required GitLab CI variables
 
-Set these in the target project:
+Set these in the target project's **Settings > CI/CD > Variables**:
 
-- `GITLAB_CI_HELPER_TOKEN`
-- `GITLAB_CI_HELPER_CODEX_AUTH` (file variable; only needed when `codex_review` is enabled)
-- `GITLAB_CI_HELPER_CODEX_IMAGE` (optional override; default is `ghcr.io/miare-ir/gitlab-ci-helper-runner:v0`)
+| Variable | Description |
+|---|---|
+| `GITLAB_CI_HELPER_TOKEN` | GitLab API token with access to the project |
+| `GITLAB_CI_HELPER_CODEX_AUTH` | File variable; required when `codex_review` is enabled |
+| `GITLAB_CI_HELPER_CODEX_IMAGE` | Optional override for the runner image (default: `ghcr.io/miare-ir/gitlab-ci-helper-runner:v0`) |
 
-Pin this variable to a concrete release tag (for example `ghcr.io/miare-ir/gitlab-ci-helper-runner:v0.1.0`) for reproducible pipelines.
+Pin `GITLAB_CI_HELPER_CODEX_IMAGE` to a concrete release tag (e.g. `ghcr.io/miare-ir/gitlab-ci-helper-runner:v0.1.0`) for reproducible pipelines.
 
-## GitHub CI/CD
+## Runner image
 
-- `.github/workflows/ci.yml`: runs tests with ginkgo and builds the CLI binary on push/PR.
-- `.github/workflows/release.yml`: on `v*` tags it:
-  - runs tests,
-  - builds cross-platform CLI archives and publishes GitHub release assets,
-  - builds/pushes the Codex base image to GHCR with semver tags (`vX.Y.Z`, `vX.Y`, `vX`, `latest`).
+The `codex_review` job runs inside a container image published to GitHub Container Registry:
 
-## Codex Base Image
+```
+docker pull ghcr.io/miare-ir/gitlab-ci-helper-runner:v0
+```
 
-- Docker context: `docker/codex-base/`
-- Dockerfile: `docker/codex-base/Dockerfile`
-- Codex npm version source: `docker/codex-base/CODEX_VERSION`
-
-Update `docker/codex-base/CODEX_VERSION` before cutting a release if you want to pin to a specific `@openai/codex` npm version instead of `latest`.
-
-## Template layout
-
-- `templates/gitlab-ci-helper.yml`
-- `templates/scripts/*.sh`
-- `templates/codex/*`
-- `templates/mr_description.md`
+Each release publishes tags `vX.Y.Z`, `vX.Y`, `vX`, and `latest`.
