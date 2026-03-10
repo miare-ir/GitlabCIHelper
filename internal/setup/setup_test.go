@@ -6,55 +6,46 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
 )
 
-func TestDiscoverPipelineCollectsLocalIncludes(t *testing.T) {
-	t.Parallel()
+var _ = Describe("Setup flow", func() {
+	Describe("DiscoverPipeline", func() {
+		It("collects local includes", func() {
+			dir := GinkgoT().TempDir()
+			root := filepath.Join(dir, ".gitlab-ci.yml")
+			stagesPath := filepath.Join(dir, "gitlab-ci", "stages", "base.yml")
 
-	dir := t.TempDir()
-	root := filepath.Join(dir, ".gitlab-ci.yml")
-	stagesPath := filepath.Join(dir, "gitlab-ci", "stages", "base.yml")
-	if err := os.MkdirAll(filepath.Dir(stagesPath), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
+			err := os.MkdirAll(filepath.Dir(stagesPath), 0o755)
+			Expect(err).NotTo(HaveOccurred())
 
-	rootContent := `include:
+			rootContent := `include:
   - local: gitlab-ci/stages/*.yml
 stages:
   - build
   - test
 `
-	if err := os.WriteFile(root, []byte(rootContent), 0o644); err != nil {
-		t.Fatalf("write root: %v", err)
-	}
+			err = os.WriteFile(root, []byte(rootContent), 0o644)
+			Expect(err).NotTo(HaveOccurred())
 
-	includedContent := `stages:
+			includedContent := `stages:
   - deploy
 `
-	if err := os.WriteFile(stagesPath, []byte(includedContent), 0o644); err != nil {
-		t.Fatalf("write include: %v", err)
-	}
+			err = os.WriteFile(stagesPath, []byte(includedContent), 0o644)
+			Expect(err).NotTo(HaveOccurred())
 
-	result, err := DiscoverPipeline(root)
-	if err != nil {
-		t.Fatalf("discover: %v", err)
-	}
+			result, err := DiscoverPipeline(root)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Stages).To(Equal([]string{"build", "test", "deploy"}))
+		})
+	})
 
-	if len(result.Stages) != 3 {
-		t.Fatalf("expected 3 stages, got %d (%v)", len(result.Stages), result.Stages)
-	}
-	if result.Stages[0] != "build" || result.Stages[1] != "test" || result.Stages[2] != "deploy" {
-		t.Fatalf("unexpected stage order: %v", result.Stages)
-	}
-}
-
-func TestApplyConfigToRootYAMLAddsIncludeVariablesAndStages(t *testing.T) {
-	t.Parallel()
-
-	original := []byte(`stages:
+	Describe("ApplyConfigToRootYAML", func() {
+		It("adds include, variables, and stages", func() {
+			original := []byte(`stages:
   - build
 include:
   - local: gitlab-ci/stages/*.yml
@@ -63,366 +54,263 @@ variables:
   GITLAB_CI_HELPER_TEMPLATE_REF: v0.9.0
 `)
 
-	cfg := Config{
-		Version: 1,
-		Jobs: JobsConfig{
-			AutoOpenMR: AutoOpenMRConfig{Enabled: true, Stage: "build", TriggerMode: "always_non_default"},
-			CodexReview: CodexJobConfig{
-				Enabled:      true,
-				Stage:        "review",
-				TriggerMode:  "manual_non_default",
-				AllowFailure: true,
-				Model:        "gpt-5.3-codex",
-			},
-			ReopenRelease: ReopenReleaseJob{Enabled: false},
-		},
-	}
+			cfg := Config{
+				Version: 1,
+				Jobs: JobsConfig{
+					AutoOpenMR: AutoOpenMRConfig{Enabled: true, Stage: "build", TriggerMode: "always_non_default"},
+					CodexReview: CodexJobConfig{
+						Enabled:      true,
+						Stage:        "review",
+						TriggerMode:  "manual_non_default",
+						AllowFailure: true,
+						Model:        "gpt-5.3-codex",
+					},
+					ReopenRelease: ReopenReleaseJob{Enabled: false},
+				},
+			}
 
-	updated, err := ApplyConfigToRootYAML(original, cfg, []string{"review"})
-	if err != nil {
-		t.Fatalf("apply: %v", err)
-	}
+			updated, err := ApplyConfigToRootYAML(original, cfg, []string{"review"})
+			Expect(err).NotTo(HaveOccurred())
 
-	var parsed map[string]any
-	if err := yaml.Unmarshal(updated, &parsed); err != nil {
-		t.Fatalf("unmarshal updated: %v", err)
-	}
+			var parsed map[string]any
+			Expect(yaml.Unmarshal(updated, &parsed)).To(Succeed())
 
-	stages := parsed["stages"].([]any)
-	if len(stages) != 2 || stages[1].(string) != "review" {
-		t.Fatalf("expected review stage appended, got %v", stages)
-	}
+			stages := parsed["stages"].([]any)
+			Expect(stages).To(HaveLen(2))
+			Expect(stages[1]).To(Equal("review"))
 
-	include := parsed["include"].([]any)
-	if len(include) != 2 {
-		t.Fatalf("expected include entries length 2, got %d", len(include))
-	}
-	foundLocalInclude := false
-	for _, item := range include {
-		entry, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		localValue, ok := entry["local"].(string)
-		if !ok {
-			continue
-		}
-		if localValue == LocalTemplatePath {
-			foundLocalInclude = true
-			break
-		}
-	}
-	if !foundLocalInclude {
-		t.Fatalf("expected include to contain local helper template path %q, got %v", LocalTemplatePath, include)
-	}
+			include := parsed["include"].([]any)
+			Expect(include).To(HaveLen(2))
+			foundLocalInclude := false
+			for _, item := range include {
+				entry, ok := item.(map[string]any)
+				if !ok {
+					continue
+				}
+				localValue, ok := entry["local"].(string)
+				if !ok {
+					continue
+				}
+				if localValue == LocalTemplatePath {
+					foundLocalInclude = true
+					break
+				}
+			}
+			Expect(foundLocalInclude).To(BeTrue())
 
-	variables := parsed["variables"].(map[string]any)
-	if variables["GITLAB_CI_HELPER_MR_TEMPLATE_PATH"].(string) != LocalMRTemplatePath {
-		t.Fatalf("mr template variable missing or unexpected: %v", variables)
-	}
-	if variables[EnvCodexImage].(string) != "git.miare.ir:5050/miare/images/codex:latest" {
-		t.Fatalf("codex image variable missing or unexpected: %v", variables)
-	}
-	if variables["GITLAB_CI_HELPER_CODEX_REVIEW_MODEL"].(string) != "gpt-5.3-codex" {
-		t.Fatalf("codex model variable missing: %v", variables)
-	}
-	if _, ok := variables["GITLAB_CI_HELPER_TEMPLATE_PROJECT"]; ok {
-		t.Fatalf("expected legacy template project variable to be removed, got %v", variables)
-	}
-	if _, ok := variables["GITLAB_CI_HELPER_TEMPLATE_REF"]; ok {
-		t.Fatalf("expected legacy template ref variable to be removed, got %v", variables)
-	}
-}
+			variables := parsed["variables"].(map[string]any)
+			Expect(variables["GITLAB_CI_HELPER_MR_TEMPLATE_PATH"]).To(Equal(LocalMRTemplatePath))
+			Expect(variables[EnvCodexImage]).To(Equal(DefaultCodexImage))
+			Expect(variables["GITLAB_CI_HELPER_CODEX_REVIEW_MODEL"]).To(Equal("gpt-5.3-codex"))
+			Expect(variables).NotTo(HaveKey("GITLAB_CI_HELPER_TEMPLATE_PROJECT"))
+			Expect(variables).NotTo(HaveKey("GITLAB_CI_HELPER_TEMPLATE_REF"))
+		})
 
-func TestApplyConfigToRootYAMLUsesMRDescriptionOverridePath(t *testing.T) {
-	t.Parallel()
+		It("uses MR description override path", func() {
+			overridePath := ".gitlab/merge_request_templates/release.md"
+			cfg := defaultConfig()
+			cfg.Jobs.AutoOpenMR.MRDescriptionOverridePath = &overridePath
 
-	overridePath := ".gitlab/merge_request_templates/release.md"
-	cfg := defaultConfig()
-	cfg.Jobs.AutoOpenMR.MRDescriptionOverridePath = &overridePath
+			updated, err := ApplyConfigToRootYAML([]byte("stages:\n  - build\n"), cfg, nil)
+			Expect(err).NotTo(HaveOccurred())
 
-	updated, err := ApplyConfigToRootYAML([]byte("stages:\n  - build\n"), cfg, nil)
-	if err != nil {
-		t.Fatalf("apply: %v", err)
-	}
+			var parsed map[string]any
+			Expect(yaml.Unmarshal(updated, &parsed)).To(Succeed())
 
-	var parsed map[string]any
-	if err := yaml.Unmarshal(updated, &parsed); err != nil {
-		t.Fatalf("unmarshal updated: %v", err)
-	}
+			variables := parsed["variables"].(map[string]any)
+			Expect(variables[EnvMRTemplatePath]).To(Equal(overridePath))
+		})
 
-	variables := parsed["variables"].(map[string]any)
-	if variables[EnvMRTemplatePath].(string) != overridePath {
-		t.Fatalf("expected %s=%q, got %v", EnvMRTemplatePath, overridePath, variables[EnvMRTemplatePath])
-	}
-}
-
-func TestApplyConfigToRootYAMLKeepsExistingLocalInclude(t *testing.T) {
-	t.Parallel()
-
-	original := []byte(`include:
+		It("keeps existing local include while cleaning legacy include", func() {
+			original := []byte(`include:
   - project: platform/gitlab-ci-helper
     ref: v0.9.0
     file: /templates/gitlab-ci-helper.yml
   - local: .gitlab-ci-helper/gitlab-ci-helper.yml
 `)
 
-	cfg := defaultConfig()
+			cfg := defaultConfig()
+			updated, err := ApplyConfigToRootYAML(original, cfg, nil)
+			Expect(err).NotTo(HaveOccurred())
 
-	updated, err := ApplyConfigToRootYAML(original, cfg, nil)
-	if err != nil {
-		t.Fatalf("apply: %v", err)
-	}
+			var parsed map[string]any
+			Expect(yaml.Unmarshal(updated, &parsed)).To(Succeed())
 
-	var parsed map[string]any
-	if err := yaml.Unmarshal(updated, &parsed); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
+			include := parsed["include"].([]any)
+			Expect(include).To(HaveLen(1))
 
-	include := parsed["include"].([]any)
-	if len(include) != 1 {
-		t.Fatalf("expected single local include entry after legacy cleanup, got %d (%v)", len(include), include)
-	}
+			entry := include[0].(map[string]any)
+			Expect(entry["local"]).To(Equal(LocalTemplatePath))
+		})
+	})
 
-	entry := include[0].(map[string]any)
-	if entry["local"].(string) != LocalTemplatePath {
-		t.Fatalf("expected local include to remain %q, got %v", LocalTemplatePath, entry["local"])
-	}
-}
+	Describe("syncHelperAssets", func() {
+		It("writes all mapped files", func() {
+			dir := GinkgoT().TempDir()
 
-func TestSyncHelperAssetsWritesFiles(t *testing.T) {
-	t.Parallel()
+			cfg := defaultConfig()
+			cfg.Jobs.AutoOpenMR.Stage = "checks"
+			cfg.Jobs.CodexReview.Stage = "review"
 
-	dir := t.TempDir()
+			Expect(syncHelperAssets(dir, cfg)).To(Succeed())
 
-	cfg := defaultConfig()
-	cfg.Jobs.AutoOpenMR.Stage = "checks"
-	cfg.Jobs.CodexReview.Stage = "review"
+			for _, mapping := range helperAssetMappings() {
+				targetPath := filepath.Join(dir, mapping.target)
+				info, err := os.Stat(targetPath)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(info.Size()).To(BeNumerically(">", 0))
+			}
+		})
+	})
 
-	if err := syncHelperAssets(dir, cfg); err != nil {
-		t.Fatalf("sync assets: %v", err)
-	}
+	Describe("PlanSetupChange", func() {
+		It("renders concrete stages in helper template", func() {
+			cfg := defaultConfig()
+			cfg.Jobs.AutoOpenMR.Stage = "checks"
+			cfg.Jobs.CodexReview.Stage = "build"
 
-	for _, mapping := range helperAssetMappings() {
-		targetPath := filepath.Join(dir, mapping.target)
-		info, err := os.Stat(targetPath)
-		if err != nil {
-			t.Fatalf("expected synced file %s: %v", mapping.target, err)
-		}
-		if info.Size() == 0 {
-			t.Fatalf("expected synced file %s to be non-empty", mapping.target)
-		}
-	}
-}
+			planned, err := PlanSetupChange([]byte("stages:\n  - build\n"), nil, cfg, []string{"checks"})
+			Expect(err).NotTo(HaveOccurred())
 
-func TestPlanSetupChangeRendersConcreteStagesInHelperTemplate(t *testing.T) {
-	t.Parallel()
+			var helperTemplate string
+			for _, asset := range planned.Assets {
+				if asset.RelativePath == LocalTemplatePath {
+					helperTemplate = string(asset.Body)
+					break
+				}
+			}
+			Expect(helperTemplate).NotTo(BeEmpty())
 
-	cfg := defaultConfig()
-	cfg.Jobs.AutoOpenMR.Stage = "checks"
-	cfg.Jobs.CodexReview.Stage = "build"
+			Expect(helperTemplate).NotTo(ContainSubstring(autoOpenMRStagePlaceholder))
+			Expect(helperTemplate).NotTo(ContainSubstring(codexReviewStagePlaceholder))
+			Expect(helperTemplate).NotTo(ContainSubstring(EnvAutoOpenMRStage))
+			Expect(helperTemplate).NotTo(ContainSubstring(EnvCodexReviewStage))
+			Expect(helperTemplate).To(ContainSubstring("stage: checks"))
+			Expect(helperTemplate).To(ContainSubstring("stage: build"))
+		})
 
-	planned, err := PlanSetupChange([]byte("stages:\n  - build\n"), nil, cfg, []string{"checks"})
-	if err != nil {
-		t.Fatalf("plan: %v", err)
-	}
+		It("is idempotent after first apply", func() {
+			cfg := defaultConfig()
+			cfg.Jobs.AutoOpenMR.Stage = "build"
+			cfg.Jobs.CodexReview.Stage = "build"
 
-	var helperTemplate string
-	for _, asset := range planned.Assets {
-		if asset.RelativePath == LocalTemplatePath {
-			helperTemplate = string(asset.Body)
-			break
-		}
-	}
-	if helperTemplate == "" {
-		t.Fatalf("expected planned assets to include %s", LocalTemplatePath)
-	}
-
-	if strings.Contains(helperTemplate, autoOpenMRStagePlaceholder) || strings.Contains(helperTemplate, codexReviewStagePlaceholder) {
-		t.Fatalf("expected helper template placeholders to be rendered, got %q", helperTemplate)
-	}
-	if strings.Contains(helperTemplate, EnvAutoOpenMRStage) || strings.Contains(helperTemplate, EnvCodexReviewStage) {
-		t.Fatalf("expected helper template to avoid env-based stage references, got %q", helperTemplate)
-	}
-	if !strings.Contains(helperTemplate, "stage: checks") {
-		t.Fatalf("expected rendered auto_open_mr stage, got %q", helperTemplate)
-	}
-	if !strings.Contains(helperTemplate, "stage: build") {
-		t.Fatalf("expected rendered codex_review stage, got %q", helperTemplate)
-	}
-}
-
-func TestPlanSetupChangeIsIdempotentAfterFirstApply(t *testing.T) {
-	t.Parallel()
-
-	cfg := defaultConfig()
-	cfg.Jobs.AutoOpenMR.Stage = "build"
-	cfg.Jobs.CodexReview.Stage = "build"
-
-	initialRoot := []byte(`stages:
+			initialRoot := []byte(`stages:
   - build
 `)
-	appliedRoot, err := ApplyConfigToRootYAML(initialRoot, cfg, nil)
-	if err != nil {
-		t.Fatalf("first apply root: %v", err)
-	}
+			appliedRoot, err := ApplyConfigToRootYAML(initialRoot, cfg, nil)
+			Expect(err).NotTo(HaveOccurred())
 
-	cfgBody, err := marshalConfig(cfg)
-	if err != nil {
-		t.Fatalf("marshal config: %v", err)
-	}
+			cfgBody, err := marshalConfig(cfg)
+			Expect(err).NotTo(HaveOccurred())
 
-	planned, err := PlanSetupChange(appliedRoot, cfgBody, cfg, nil)
-	if err != nil {
-		t.Fatalf("plan: %v", err)
-	}
+			planned, err := PlanSetupChange(appliedRoot, cfgBody, cfg, nil)
+			Expect(err).NotTo(HaveOccurred())
 
-	if string(planned.RootPipeline.OriginalBody) != string(planned.RootPipeline.UpdatedBody) {
-		t.Fatalf("expected root pipeline plan to be idempotent")
-	}
-	if string(planned.Config.OriginalBody) != string(planned.Config.UpdatedBody) {
-		t.Fatalf("expected config plan to be idempotent")
-	}
-}
-
-func TestPromptOptionAcceptsValueKey(t *testing.T) {
-	t.Parallel()
-
-	reader := bufio.NewReader(strings.NewReader(TriggerManualNonDefault + "\n"))
-	var out bytes.Buffer
-	got, err := promptOption(reader, &out, "auto_open_mr trigger mode", TriggerAlwaysNonDefault, []option{
-		{Value: TriggerAlwaysNonDefault, Label: "Always"},
-		{Value: TriggerManualNonDefault, Label: "Manual"},
+			Expect(string(planned.RootPipeline.OriginalBody)).To(Equal(string(planned.RootPipeline.UpdatedBody)))
+			Expect(string(planned.Config.OriginalBody)).To(Equal(string(planned.Config.UpdatedBody)))
+		})
 	})
-	if err != nil {
-		t.Fatalf("promptOption: %v", err)
-	}
-	if got != TriggerManualNonDefault {
-		t.Fatalf("expected trigger mode %q, got %q", TriggerManualNonDefault, got)
-	}
-}
 
-func TestPromptStageNormalizesCaseToKnownStage(t *testing.T) {
-	t.Parallel()
+	Describe("prompt helpers", func() {
+		It("promptOption accepts value key", func() {
+			reader := bufio.NewReader(strings.NewReader(TriggerManualNonDefault + "\n"))
+			var out bytes.Buffer
+			got, err := promptOption(reader, &out, "auto_open_mr trigger mode", TriggerAlwaysNonDefault, []option{
+				{Value: TriggerAlwaysNonDefault, Label: "Always"},
+				{Value: TriggerManualNonDefault, Label: "Manual"},
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got).To(Equal(TriggerManualNonDefault))
+		})
 
-	stageOrder := []string{"Build", "Review"}
-	stageSet := map[string]struct{}{
-		"Build":  {},
-		"Review": {},
-	}
-	reader := bufio.NewReader(strings.NewReader("review\n"))
-	var out bytes.Buffer
+		It("promptStage normalizes case to known stage", func() {
+			stageOrder := []string{"Build", "Review"}
+			stageSet := map[string]struct{}{
+				"Build":  {},
+				"Review": {},
+			}
+			reader := bufio.NewReader(strings.NewReader("review\n"))
+			var out bytes.Buffer
 
-	stage, additions, err := promptStage(reader, &out, "codex_review", "Build", stageOrder, stageSet)
-	if err != nil {
-		t.Fatalf("promptStage: %v", err)
-	}
-	if stage != "Review" {
-		t.Fatalf("expected canonical stage %q, got %q", "Review", stage)
-	}
-	if len(additions) != 0 {
-		t.Fatalf("expected no stage additions, got %v", additions)
-	}
-}
+			stage, additions, err := promptStage(reader, &out, "codex_review", "Build", stageOrder, stageSet)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(stage).To(Equal("Review"))
+			Expect(additions).To(BeEmpty())
+		})
 
-func TestPickRecommendedStagePrefersQualityStage(t *testing.T) {
-	t.Parallel()
+		It("pickRecommendedStage prefers quality stage", func() {
+			got := pickRecommendedStage("Checks", []string{"build", "test", "deploy"}, "auto_open_mr")
+			Expect(got).To(Equal("test"))
+		})
+	})
 
-	got := pickRecommendedStage("Checks", []string{"build", "test", "deploy"}, "auto_open_mr")
-	if got != "test" {
-		t.Fatalf("expected recommended stage %q, got %q", "test", got)
-	}
-}
-
-func TestRunWithSingleReaderNoApply(t *testing.T) {
-	t.Parallel()
-
-	dir := t.TempDir()
-	rootPath := filepath.Join(dir, rootPipelineFile)
-	originalRoot := `stages:
+	Describe("Run", func() {
+		It("does not apply changes when user selects no", func() {
+			dir := GinkgoT().TempDir()
+			rootPath := filepath.Join(dir, rootPipelineFile)
+			originalRoot := `stages:
   - build
 `
-	if err := os.WriteFile(rootPath, []byte(originalRoot), 0o644); err != nil {
-		t.Fatalf("write root: %v", err)
-	}
+			Expect(os.WriteFile(rootPath, []byte(originalRoot), 0o644)).To(Succeed())
 
-	input := strings.Join([]string{
-		"",
-		"build",
-		"",
-		"",
-		"",
-		"build",
-		"",
-		"",
-		"",
-		"",
-		"n",
-	}, "\n") + "\n"
+			input := strings.Join([]string{
+				"",
+				"build",
+				"",
+				"",
+				"",
+				"build",
+				"",
+				"",
+				"",
+				"",
+				"n",
+			}, "\n") + "\n"
 
-	var out bytes.Buffer
-	if err := Run(&out, strings.NewReader(input), dir); err != nil {
-		t.Fatalf("run: %v", err)
-	}
+			var out bytes.Buffer
+			Expect(Run(&out, strings.NewReader(input), dir)).To(Succeed())
 
-	if _, err := os.Stat(filepath.Join(dir, ConfigPath)); !os.IsNotExist(err) {
-		t.Fatalf("expected %s not to be created when apply=no", ConfigPath)
-	}
-	gotRoot, err := os.ReadFile(rootPath)
-	if err != nil {
-		t.Fatalf("read root: %v", err)
-	}
-	if string(gotRoot) != originalRoot {
-		t.Fatalf("expected root file to remain unchanged")
-	}
-	if !strings.Contains(out.String(), "No files were changed.") {
-		t.Fatalf("expected no-change message in output")
-	}
-}
+			_, err := os.Stat(filepath.Join(dir, ConfigPath))
+			Expect(os.IsNotExist(err)).To(BeTrue())
 
-func TestRunApplyWritesRootConfigAndAssets(t *testing.T) {
-	t.Parallel()
+			gotRoot, err := os.ReadFile(rootPath)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(string(gotRoot)).To(Equal(originalRoot))
+			Expect(out.String()).To(ContainSubstring("No files were changed."))
+		})
 
-	dir := t.TempDir()
-	rootPath := filepath.Join(dir, rootPipelineFile)
-	if err := os.WriteFile(rootPath, []byte("stages:\n  - build\n"), 0o644); err != nil {
-		t.Fatalf("write root: %v", err)
-	}
+		It("applies and writes root, config, and assets", func() {
+			dir := GinkgoT().TempDir()
+			rootPath := filepath.Join(dir, rootPipelineFile)
+			Expect(os.WriteFile(rootPath, []byte("stages:\n  - build\n"), 0o644)).To(Succeed())
 
-	input := strings.Join([]string{
-		"",
-		"build",
-		"",
-		"",
-		"",
-		"build",
-		"",
-		"",
-		"",
-		"",
-		"y",
-	}, "\n") + "\n"
+			input := strings.Join([]string{
+				"",
+				"build",
+				"",
+				"",
+				"",
+				"build",
+				"",
+				"",
+				"",
+				"",
+				"y",
+			}, "\n") + "\n"
 
-	var out bytes.Buffer
-	if err := Run(&out, strings.NewReader(input), dir); err != nil {
-		t.Fatalf("run: %v", err)
-	}
+			var out bytes.Buffer
+			Expect(Run(&out, strings.NewReader(input), dir)).To(Succeed())
 
-	rootBody, err := os.ReadFile(rootPath)
-	if err != nil {
-		t.Fatalf("read root: %v", err)
-	}
-	if !strings.Contains(string(rootBody), LocalTemplatePath) {
-		t.Fatalf("expected root pipeline to include %s", LocalTemplatePath)
-	}
-	if !strings.Contains(string(rootBody), EnvAutoOpenMREnabled) {
-		t.Fatalf("expected root pipeline variables to include %s", EnvAutoOpenMREnabled)
-	}
+			rootBody, err := os.ReadFile(rootPath)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(string(rootBody)).To(ContainSubstring(LocalTemplatePath))
+			Expect(string(rootBody)).To(ContainSubstring(EnvAutoOpenMREnabled))
 
-	if _, err := os.Stat(filepath.Join(dir, ConfigPath)); err != nil {
-		t.Fatalf("expected config file to be written: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(dir, LocalTemplatesSubdir, "scripts", "auto_open_mr.sh")); err != nil {
-		t.Fatalf("expected helper asset to be written: %v", err)
-	}
-}
+			_, err = os.Stat(filepath.Join(dir, ConfigPath))
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = os.Stat(filepath.Join(dir, LocalTemplatesSubdir, "scripts", "auto_open_mr.sh"))
+			Expect(err).NotTo(HaveOccurred())
+		})
+	})
+})

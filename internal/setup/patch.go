@@ -164,7 +164,7 @@ func upsertVariables(root *yaml.Node, cfg Config) error {
 	setMappingScalar(vars, EnvCodexReviewTriggerMode, cfg.Jobs.CodexReview.TriggerMode)
 	setMappingScalar(vars, EnvCodexReviewAllowFailure, boolString(cfg.Jobs.CodexReview.AllowFailure))
 	setMappingScalar(vars, EnvCodexReviewModel, cfg.Jobs.CodexReview.Model)
-	setMappingScalar(vars, EnvCodexImage, "git.miare.ir:5050/miare/images/codex:latest")
+	setMappingScalar(vars, EnvCodexImage, DefaultCodexImage)
 	setMappingScalar(vars, EnvCodexPromptPath, derefOrEmpty(cfg.Jobs.CodexReview.PromptOverridePath))
 	setMappingScalar(vars, EnvCodexSchemaPath, derefOrEmpty(cfg.Jobs.CodexReview.SchemaOverridePath))
 

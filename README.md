@@ -35,6 +35,25 @@ Set these in the target project:
 
 - `GITLAB_CI_HELPER_TOKEN`
 - `GITLAB_CI_HELPER_CODEX_AUTH` (file variable; only needed when `codex_review` is enabled)
+- `GITLAB_CI_HELPER_CODEX_IMAGE` (optional override; default is `ghcr.io/miare-ir/codexbase:v0`)
+
+Pin this variable to a concrete release tag (for example `ghcr.io/miare-ir/codexbase:v0.1.0`) for reproducible pipelines.
+
+## GitHub CI/CD
+
+- `.github/workflows/ci.yml`: runs `go test ./...` and builds the CLI binary on push/PR.
+- `.github/workflows/release.yml`: on `v*.*.*` tags it:
+  - runs tests,
+  - builds cross-platform CLI archives and publishes GitHub release assets,
+  - builds/pushes the Codex base image to GHCR with semver tags (`vX.Y.Z`, `vX.Y`, `vX`, `latest`).
+
+## Codex Base Image
+
+- Docker context: `docker/codex-base/`
+- Dockerfile: `docker/codex-base/Dockerfile`
+- Codex npm version source: `docker/codex-base/CODEX_VERSION`
+
+Update `docker/codex-base/CODEX_VERSION` before cutting a release if you want to pin to a specific `@openai/codex` npm version instead of `latest`.
 
 ## Template layout
 

@@ -36,3 +36,8 @@ const (
 	TriggerManualMREvent    = "manual_mr_event"
 	TriggerAlwaysMREvent    = "always_mr_event"
 )
+
+const (
+	// DefaultCodexImage points to the public GHCR image built from this repository releases.
+	DefaultCodexImage = "ghcr.io/miare-ir/codexbase:v0"
+)
