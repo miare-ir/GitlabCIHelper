@@ -39,5 +39,5 @@ const (
 
 const (
 	// DefaultCodexImage points to the public GHCR image built from this repository releases.
-	DefaultCodexImage = "ghcr.io/miare-ir/codexbase:v0"
+	DefaultCodexImage = "ghcr.io/miare-ir/gitlab-ci-helper-runner:v0"
 )

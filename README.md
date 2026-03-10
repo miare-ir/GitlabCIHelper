@@ -35,14 +35,14 @@ Set these in the target project:
 
 - `GITLAB_CI_HELPER_TOKEN`
 - `GITLAB_CI_HELPER_CODEX_AUTH` (file variable; only needed when `codex_review` is enabled)
-- `GITLAB_CI_HELPER_CODEX_IMAGE` (optional override; default is `ghcr.io/miare-ir/codexbase:v0`)
+- `GITLAB_CI_HELPER_CODEX_IMAGE` (optional override; default is `ghcr.io/miare-ir/gitlab-ci-helper-runner:v0`)
 
-Pin this variable to a concrete release tag (for example `ghcr.io/miare-ir/codexbase:v0.1.0`) for reproducible pipelines.
+Pin this variable to a concrete release tag (for example `ghcr.io/miare-ir/gitlab-ci-helper-runner:v0.1.0`) for reproducible pipelines.
 
 ## GitHub CI/CD
 
-- `.github/workflows/ci.yml`: runs `go test ./...` and builds the CLI binary on push/PR.
-- `.github/workflows/release.yml`: on `v*.*.*` tags it:
+- `.github/workflows/ci.yml`: runs tests with ginkgo and builds the CLI binary on push/PR.
+- `.github/workflows/release.yml`: on `v*` tags it:
   - runs tests,
   - builds cross-platform CLI archives and publishes GitHub release assets,
   - builds/pushes the Codex base image to GHCR with semver tags (`vX.Y.Z`, `vX.Y`, `vX`, `latest`).
