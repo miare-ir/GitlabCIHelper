@@ -29,5 +29,5 @@ func marshalConfig(cfg Config) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return body, nil
+	return append([]byte(configFileHeader+"\n"), body...), nil
 }
