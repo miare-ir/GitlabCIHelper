@@ -1,5 +1,5 @@
 # Binary output
-gitlab-ci-helper
+/gitlab-ci-helper
 *.exe
 *.exe~
 *.dll
