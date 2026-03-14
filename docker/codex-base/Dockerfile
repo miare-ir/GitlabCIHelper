@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim
+FROM node:25.1.0
 
 ARG CODEX_VERSION=latest
 

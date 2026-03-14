@@ -164,9 +164,9 @@ func upsertVariables(root *yaml.Node, cfg Config) error {
 	setMappingScalar(vars, EnvCodexReviewTriggerMode, cfg.Jobs.CodexReview.TriggerMode)
 	setMappingScalar(vars, EnvCodexReviewAllowFailure, boolString(cfg.Jobs.CodexReview.AllowFailure))
 	setMappingScalar(vars, EnvCodexReviewModel, cfg.Jobs.CodexReview.Model)
-	setMappingScalar(vars, EnvCodexImage, defaultCodexImage())
-	setMappingScalar(vars, EnvCodexPromptPath, derefOrEmpty(cfg.Jobs.CodexReview.PromptOverridePath))
-	setMappingScalar(vars, EnvCodexSchemaPath, derefOrEmpty(cfg.Jobs.CodexReview.SchemaOverridePath))
+	setMappingScalar(vars, EnvCodexImage, resolveCodexImage(cfg))
+	setMappingScalar(vars, EnvCodexPromptPath, cfg.Jobs.CodexReview.PromptOverridePath)
+	setMappingScalar(vars, EnvCodexSchemaPath, cfg.Jobs.CodexReview.SchemaOverridePath)
 
 	// Cleanup legacy remote-template variables from pre-standalone setups.
 	removeMappingKey(vars, LegacyEnvTemplateProject)
@@ -174,10 +174,16 @@ func upsertVariables(root *yaml.Node, cfg Config) error {
 	return nil
 }
 
-func resolveMRTemplatePath(cfg Config) string {
-	path := derefOrEmpty(cfg.Jobs.AutoOpenMR.MRDescriptionOverridePath)
-	if path == "" {
-		return LocalMRTemplatePath
+func resolveCodexImage(cfg Config) string {
+	if cfg.Jobs.CodexReview.Image != "" {
+		return cfg.Jobs.CodexReview.Image
 	}
-	return path
+	return defaultCodexImage()
+}
+
+func resolveMRTemplatePath(cfg Config) string {
+	if cfg.Jobs.AutoOpenMR.MRTemplatePath != "" {
+		return cfg.Jobs.AutoOpenMR.MRTemplatePath
+	}
+	return LocalMRTemplatePath
 }

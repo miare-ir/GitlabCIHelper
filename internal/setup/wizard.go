@@ -62,13 +62,12 @@ func collectConfig(out io.Writer, reader *bufio.Reader, existing *Config, discov
 	}
 	cfg.Jobs.AutoOpenMR.TriggerMode = autoMode
 
-	fmt.Fprintln(out, ui.infoLine("Custom MR description template path (repo-relative). Leave blank for built-in template."))
-	mrDescriptionPathDefault := derefOrEmpty(cfg.Jobs.AutoOpenMR.MRDescriptionOverridePath)
-	mrDescriptionPath, err := promptString(reader, out, "MR description override path (optional)", mrDescriptionPathDefault, false)
+	fmt.Fprintln(out, ui.infoLine(fmt.Sprintf("Custom MR description template path (repo-relative). Leave blank for default (%s).", LocalMRTemplatePath)))
+	mrTemplatePath, err := promptString(reader, out, "MR template path (optional)", cfg.Jobs.AutoOpenMR.MRTemplatePath, false)
 	if err != nil {
 		return Config{}, nil, err
 	}
-	cfg.Jobs.AutoOpenMR.MRDescriptionOverridePath = nilIfEmpty(mrDescriptionPath)
+	cfg.Jobs.AutoOpenMR.MRTemplatePath = mrTemplatePath
 
 	printJobSection(out, 2, 2, "codex_review", "AI-powered code review via Codex. Requires GITLAB_CI_HELPER_CODEX_AUTH.")
 	codexEnabled, err := promptYesNo(reader, out, "Enable codex_review", cfg.Jobs.CodexReview.Enabled)
@@ -112,21 +111,26 @@ func collectConfig(out io.Writer, reader *bufio.Reader, existing *Config, discov
 	}
 	cfg.Jobs.CodexReview.Model = model
 
-	fmt.Fprintln(out, ui.infoLine("Custom prompt template path (repo-relative). Leave blank for built-in template."))
-	promptPathDefault := derefOrEmpty(cfg.Jobs.CodexReview.PromptOverridePath)
-	promptPath, err := promptString(reader, out, "Prompt override path (optional)", promptPathDefault, false)
+	fmt.Fprintln(out, ui.infoLine(fmt.Sprintf("Custom runner image. Leave blank for version-matched default (%s).", defaultCodexImage())))
+	imageOverride, err := promptString(reader, out, "Runner image (optional)", cfg.Jobs.CodexReview.Image, false)
 	if err != nil {
 		return Config{}, nil, err
 	}
-	cfg.Jobs.CodexReview.PromptOverridePath = nilIfEmpty(promptPath)
+	cfg.Jobs.CodexReview.Image = imageOverride
+
+	fmt.Fprintln(out, ui.infoLine("Custom prompt template path (repo-relative). Leave blank for built-in template."))
+	promptPath, err := promptString(reader, out, "Prompt override path (optional)", cfg.Jobs.CodexReview.PromptOverridePath, false)
+	if err != nil {
+		return Config{}, nil, err
+	}
+	cfg.Jobs.CodexReview.PromptOverridePath = promptPath
 
 	fmt.Fprintln(out, ui.infoLine("Custom JSON schema path (repo-relative). Leave blank for built-in schema."))
-	schemaPathDefault := derefOrEmpty(cfg.Jobs.CodexReview.SchemaOverridePath)
-	schemaPath, err := promptString(reader, out, "Schema override path (optional)", schemaPathDefault, false)
+	schemaPath, err := promptString(reader, out, "Schema override path (optional)", cfg.Jobs.CodexReview.SchemaOverridePath, false)
 	if err != nil {
 		return Config{}, nil, err
 	}
-	cfg.Jobs.CodexReview.SchemaOverridePath = nilIfEmpty(schemaPath)
+	cfg.Jobs.CodexReview.SchemaOverridePath = schemaPath
 
 	cfg.Jobs.ReopenRelease.Enabled = false
 	cfg.Version = 1
@@ -173,13 +177,14 @@ func printConfigSummary(out io.Writer, cfg Config, stageAdditions []string) {
 			cfg.Jobs.AutoOpenMR.Enabled,
 			cfg.Jobs.AutoOpenMR.Stage,
 			cfg.Jobs.AutoOpenMR.TriggerMode,
-			formatOptionalPath(cfg.Jobs.AutoOpenMR.MRDescriptionOverridePath),
+			formatOptionalPath(cfg.Jobs.AutoOpenMR.MRTemplatePath),
 		),
-		fmt.Sprintf("codex_review  enabled=%t  stage=%s  trigger=%s  model=%s",
+		fmt.Sprintf("codex_review  enabled=%t  stage=%s  trigger=%s  model=%s  image=%s",
 			cfg.Jobs.CodexReview.Enabled,
 			cfg.Jobs.CodexReview.Stage,
 			cfg.Jobs.CodexReview.TriggerMode,
 			cfg.Jobs.CodexReview.Model,
+			formatImageValue(cfg.Jobs.CodexReview.Image),
 		),
 		fmt.Sprintf("codex_prompt=%s", formatOptionalPath(cfg.Jobs.CodexReview.PromptOverridePath)),
 		fmt.Sprintf("codex_schema=%s", formatOptionalPath(cfg.Jobs.CodexReview.SchemaOverridePath)),
@@ -198,13 +203,17 @@ func summarizeStages(stages []string) string {
 	return fmt.Sprintf("%s, ... (%d total)", strings.Join(stages[:6], ", "), len(stages))
 }
 
-func formatOptionalPath(value *string) string {
-	if value == nil {
-		return "(built-in)"
+func formatImageValue(image string) string {
+	if strings.TrimSpace(image) == "" {
+		return "(default)"
 	}
-	trimmed := strings.TrimSpace(*value)
+	return image
+}
+
+func formatOptionalPath(value string) string {
+	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
-		return "(built-in)"
+		return "(default)"
 	}
 	return trimmed
 }

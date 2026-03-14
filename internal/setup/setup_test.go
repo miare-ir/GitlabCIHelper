@@ -106,10 +106,9 @@ variables:
 			Expect(variables).NotTo(HaveKey("GITLAB_CI_HELPER_TEMPLATE_REF"))
 		})
 
-		It("uses MR description override path", func() {
-			overridePath := ".gitlab/merge_request_templates/release.md"
+		It("uses custom codex image from config", func() {
 			cfg := defaultConfig()
-			cfg.Jobs.AutoOpenMR.MRDescriptionOverridePath = &overridePath
+			cfg.Jobs.CodexReview.Image = "registry.example.com/custom-runner:latest"
 
 			updated, err := ApplyConfigToRootYAML([]byte("stages:\n  - build\n"), cfg, nil)
 			Expect(err).NotTo(HaveOccurred())
@@ -118,7 +117,21 @@ variables:
 			Expect(yaml.Unmarshal(updated, &parsed)).To(Succeed())
 
 			variables := parsed["variables"].(map[string]any)
-			Expect(variables[EnvMRTemplatePath]).To(Equal(overridePath))
+			Expect(variables[EnvCodexImage]).To(Equal("registry.example.com/custom-runner:latest"))
+		})
+
+		It("uses custom MR template path from config", func() {
+			cfg := defaultConfig()
+			cfg.Jobs.AutoOpenMR.MRTemplatePath = ".gitlab/merge_request_templates/release.md"
+
+			updated, err := ApplyConfigToRootYAML([]byte("stages:\n  - build\n"), cfg, nil)
+			Expect(err).NotTo(HaveOccurred())
+
+			var parsed map[string]any
+			Expect(yaml.Unmarshal(updated, &parsed)).To(Succeed())
+
+			variables := parsed["variables"].(map[string]any)
+			Expect(variables[EnvMRTemplatePath]).To(Equal(".gitlab/merge_request_templates/release.md"))
 		})
 
 		It("keeps existing local include while cleaning legacy include", func() {
@@ -264,6 +277,7 @@ variables:
 				"",
 				"",
 				"",
+				"",
 				"n",
 			}, "\n") + "\n"
 
@@ -291,6 +305,7 @@ variables:
 				"",
 				"",
 				"build",
+				"",
 				"",
 				"",
 				"",

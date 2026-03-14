@@ -1,5 +1,6 @@
 # Binary output
 /gitlab-ci-helper
+dist/
 *.exe
 *.exe~
 *.dll

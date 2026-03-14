@@ -1,8 +1,6 @@
 package setup
 
 import (
-	"strings"
-
 	"gopkg.in/yaml.v3"
 )
 
@@ -57,21 +55,6 @@ func boolString(value bool) string {
 		return "true"
 	}
 	return "false"
-}
-
-func nilIfEmpty(value string) *string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil
-	}
-	return &value
-}
-
-func derefOrEmpty(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return strings.TrimSpace(*value)
 }
 
 func contains(values []string, needle string) bool {

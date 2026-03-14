@@ -15,10 +15,10 @@ type JobsConfig struct {
 
 // AutoOpenMRConfig controls merge-request creation behavior.
 type AutoOpenMRConfig struct {
-	Enabled                   bool    `yaml:"enabled"`
-	Stage                     string  `yaml:"stage"`
-	TriggerMode               string  `yaml:"trigger_mode"`
-	MRDescriptionOverridePath *string `yaml:"mr_description_override_path"`
+	Enabled        bool   `yaml:"enabled"`
+	Stage          string `yaml:"stage"`
+	TriggerMode    string `yaml:"trigger_mode"`
+	MRTemplatePath string `yaml:"mr_template_path,omitempty"`
 }
 
 // BaseJobConfig controls generic job settings.
@@ -30,13 +30,14 @@ type BaseJobConfig struct {
 
 // CodexJobConfig controls Codex review behavior.
 type CodexJobConfig struct {
-	Enabled            bool    `yaml:"enabled"`
-	Stage              string  `yaml:"stage"`
-	TriggerMode        string  `yaml:"trigger_mode"`
-	AllowFailure       bool    `yaml:"allow_failure"`
-	Model              string  `yaml:"model"`
-	PromptOverridePath *string `yaml:"prompt_override_path"`
-	SchemaOverridePath *string `yaml:"schema_override_path"`
+	Enabled            bool   `yaml:"enabled"`
+	Stage              string `yaml:"stage"`
+	TriggerMode        string `yaml:"trigger_mode"`
+	AllowFailure       bool   `yaml:"allow_failure"`
+	Model              string `yaml:"model"`
+	Image              string `yaml:"image,omitempty"`
+	PromptOverridePath string `yaml:"prompt_override_path,omitempty"`
+	SchemaOverridePath string `yaml:"schema_override_path,omitempty"`
 }
 
 // ReopenReleaseJob is intentionally a disabled placeholder for v2.
