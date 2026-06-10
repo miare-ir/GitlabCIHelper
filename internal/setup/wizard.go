@@ -104,7 +104,7 @@ func collectConfig(out io.Writer, reader *bufio.Reader, existing *Config, discov
 	cfg.Jobs.CodexReview.TriggerMode = codexMode
 
 	cfg.Jobs.CodexReview.AllowFailure = true
-	fmt.Fprintln(out, ui.infoLine("AI model identifier passed to the review script (for example: gpt-5.3-codex)."))
+	fmt.Fprintln(out, ui.infoLine("AI model identifier passed to the review script (for example: gpt-5.5)."))
 	model, err := promptString(reader, out, "Codex model", cfg.Jobs.CodexReview.Model, true)
 	if err != nil {
 		return Config{}, nil, err
@@ -232,7 +232,7 @@ func defaultConfig() Config {
 				Stage:        "Checks",
 				TriggerMode:  TriggerManualNonDefault,
 				AllowFailure: true,
-				Model:        "gpt-5.3-codex",
+				Model:        "gpt-5.5",
 			},
 			ReopenRelease: ReopenReleaseJob{Enabled: false},
 		},

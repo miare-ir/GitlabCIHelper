@@ -34,7 +34,7 @@ gofmt -l .
 
 ## Releasing
 
-1. Update `docker/codex-base/CODEX_VERSION` if you want to pin the runner image to a specific `@openai/codex` npm version (defaults to `latest`).
+1. Update `docker/codex-base/CODEX_VERSION` if you want to pin the runner image to a different `@openai/codex` npm version (currently `v0.139.0`).
 2. Tag and push:
 
 ```bash

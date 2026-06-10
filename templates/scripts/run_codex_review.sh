@@ -71,7 +71,7 @@ fi
 env CURRENT_BRANCH="${CI_COMMIT_REF_NAME}" TARGET_BRANCH="${TARGET_BRANCH}" envsubst < "${PROMPT_TEMPLATE}" > "${TMP_DIR}/codex_prompt.txt"
 
 set -o pipefail
-codex exec --json --model="${GITLAB_CI_HELPER_CODEX_REVIEW_MODEL:-gpt-5.3-codex}" \
+codex exec --json --model="${GITLAB_CI_HELPER_CODEX_REVIEW_MODEL:-gpt-5.5}" \
   --config model_reasoning_effort="high" \
   --output-schema="${SCHEMA_PATH}" \
   - \

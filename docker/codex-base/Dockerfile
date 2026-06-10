@@ -1,6 +1,6 @@
 FROM node:25.1.0
 
-ARG CODEX_VERSION=latest
+ARG CODEX_VERSION=v0.139.0
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends jq python3 gettext-base ca-certificates \
